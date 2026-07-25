@@ -1,3 +1,4 @@
+import cn.lalaki.pub.BaseCentralPortalPlusExtension
 import com.google.protobuf.gradle.id
 import com.google.protobuf.gradle.proto
 
@@ -9,6 +10,7 @@ plugins {
     id("com.google.protobuf") version "0.9.4"
     id("com.diffplug.spotless") version "6.25.0"
 
+    id("cn.lalaki.central") version "1.2.8"
     id("maven-publish")
     signing
 }
@@ -91,6 +93,11 @@ dependencies {
 }
 
 cargo {
+    if (gradle.startParameter.taskNames.any { it.lowercase().contains("release") }) {
+        profile = "release"
+    } else {
+        profile = "debug"
+    }
     module = "./src/main/rust/"
     libname = "libsql_android"
     targets = listOf("arm", "arm64", "x86", "x86_64")
@@ -141,12 +148,13 @@ spotless {
     }
 }
 
+var local = uri(layout.buildDirectory.dir("staging-deploy"))
 publishing {
     publications {
         create<MavenPublication>("release") {
             groupId = "tech.turso.libsql"
             artifactId = "libsql"
-            version = "0.1.0"
+            version = "0.1.1"
 
             afterEvaluate {
                 from(components.getByName("release"))
@@ -191,7 +199,7 @@ publishing {
     repositories {
         maven {
             name = "stagingDeploy"
-            url = uri(layout.buildDirectory.dir("staging-deploy"))
+            url = local
         }
     }
 }
@@ -203,4 +211,14 @@ signing {
 
 tasks.withType<AbstractPublishToMaven>().configureEach {
     dependsOn(tasks.withType<Sign>())
+}
+
+val sonatypeUsername: String by project
+val sonatypePassword: String by project
+
+centralPortalPlus {
+    url = local
+    username = sonatypeUsername
+    password = sonatypePassword
+    publishingType = BaseCentralPortalPlusExtension.PublishingType.AUTOMATIC
 }
